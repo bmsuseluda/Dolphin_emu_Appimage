@@ -91,4 +91,4 @@ jobs:
         with:
           prerelease: false
           files: /home/runner/work/Dolphin_emu_Appimage/Dolphin_emu_Appimage/*.AppImage*
-          repo_token: ${{ secrets.RELEASE_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
