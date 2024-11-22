@@ -1,35 +1,17 @@
-# This is a basic workflow to help you get started with Actions
+name: Release
 
-name: CI
-
-# Controls when the action will run. 
 on:
-  # Build at 00:00 on every 12th day-of-month.
-  schedule:
-    - cron: "0 0 */6 * *"
-  # Triggers the workflow on push or pull request events but only for the master branch
   push:
-    branches: [ main ]
-    paths-ignore: [ '**/README.md' ]
-  pull_request:
-    branches: [ main ]
-    paths-ignore: [ '**/README.md' ]
+    tags:
+      - '*'
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build-stable"
   build-stable:
-    # The type of runner that the job will run on
     runs-on: ubuntu-20.04
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
-
+      - name: Set env
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
       - name: Prerequisites
         run: |
           curl -sLO https://files.pythonhosted.org/packages/47/42/351389ca36c7adfc5f4e92d086cdb2bdbde13f1b89ee882f4a1cab2183ac/yaqti-2021.7.29-py3-none-any.whl
@@ -64,15 +46,15 @@ jobs:
           wget -q "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage" -O qtplugin ; chmod a+x qtplugin
           wget -q "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage" -O linuxdeploy ; chmod a+x linuxdeploy
           wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool ; chmod a+x appimagetool
-          git clone --filter="blob:none" --depth=1 -b master https://github.com/dolphin-emu/dolphin.git dolphin-emu
+          git clone --filter="blob:none" --depth=1 -b $RELEASE_VERSION https://github.com/dolphin-emu/dolphin.git dolphin-emu
           VERSION2="$(git -C dolphin-emu rev-parse --short HEAD)"; export VERSION2
-          mkdir lucas/
-          mkdir lucas/usr/
-          mkdir lucas/usr/lib/
-          find -name ${GITHUB_WORKSPACE} 'libxcb-cursor**' | xargs -i -t -exec cp -Lr {} /home/runner/work/Dolphin_emu_Appimage/Dolphin_emu_Appimage/lucas/usr/lib/
-          find ${GITHUB_WORKSPACE} -name 'libqxcb**' | xargs -i -t -exec cp -Lr {} /home/runner/work/Dolphin_emu_Appimage/Dolphin_emu_Appimage/lucas/usr/lib/
-          cp /usr/lib/x86_64-linux-gnu/libstdc++.so.6 /home/runner/work/Dolphin_emu_Appimage/Dolphin_emu_Appimage/lucas/usr/lib/
-          cp dolphin-emu.desktop dolphin-emu.png AppRun libunionpreload.so lucas/
+          mkdir dolphin/
+          mkdir dolphin/usr/
+          mkdir dolphin/usr/lib/
+          find -name ${GITHUB_WORKSPACE} 'libxcb-cursor**' | xargs -i -t -exec cp -Lr {} /home/runner/work/Dolphin_emu_Appimage/Dolphin_emu_Appimage/dolphin/usr/lib/
+          find ${GITHUB_WORKSPACE} -name 'libqxcb**' | xargs -i -t -exec cp -Lr {} /home/runner/work/Dolphin_emu_Appimage/Dolphin_emu_Appimage/dolphin/usr/lib/
+          cp /usr/lib/x86_64-linux-gnu/libstdc++.so.6 /home/runner/work/Dolphin_emu_Appimage/Dolphin_emu_Appimage/dolphin/usr/lib/
+          cp dolphin-emu.desktop dolphin-emu.png AppRun libunionpreload.so dolphin/
           cd ./dolphin-emu
           git submodule update --init --recursive
           [ "${COMMIT:=}" ] && git fetch --unshallow --tags && git checkout "$COMMIT"
@@ -85,12 +67,11 @@ jobs:
           export QT_DIR="$QT_DIR:${{github.workspace}}/qt/6.7.2/gcc_64/lib/cmake/Qt6/"
           mkdir -p "$HOME/.ccache"
           mkdir Build && cd Build
-          cmake .. -GNinja -DLINUX_LOCAL_DEV=true -DCMAKE_PREFIX_PATH="${GITHUB_WORKSPACE}/qt/6.7.2/gcc_64/" -DCMAKE_INSTALL_PREFIX="/home/runner/work/Dolphin_emu_Appimage/Dolphin_emu_Appimage/lucas/usr/"
+          cmake .. -GNinja -DLINUX_LOCAL_DEV=true -DCMAKE_PREFIX_PATH="${GITHUB_WORKSPACE}/qt/6.7.2/gcc_64/" -DCMAKE_INSTALL_PREFIX="/home/runner/work/Dolphin_emu_Appimage/Dolphin_emu_Appimage/dolphin/usr/"
           ninja install
           cd ..
           cd ..
 
-      # Runs a set of commands using the runners shell
       - name: Build appimage
         run: |
           
@@ -98,17 +79,14 @@ jobs:
           echo $LD_LIBRARY_PATH
           export PATH=$PATH:$( find ${{github.workspace}}/qt/6.7.2/ -type d -printf ":%p" )
           echo $PATH
-          ./qtplugin --appdir lucas/
-          ./linuxdeploy --appdir lucas/
-          find . -iname 'Sys' | xargs -i -t -exec cp -r {} ${GITHUB_WORKSPACE}/lucas/usr/bin/
-          ARCH=x86_64 VERSION=git ./appimagetool -n lucas/
+          ./qtplugin --appdir dolphin/
+          ./linuxdeploy --appdir dolphin/
+          find . -iname 'Sys' | xargs -i -t -exec cp -r {} ${GITHUB_WORKSPACE}/dolphin/usr/bin/
+          ARCH=x86_64 VERSION=git ./appimagetool -n dolphin/
 
       - name: release
         uses: "marvinpinto/action-automatic-releases@6273874b61ebc8c71f1a61b2d98e234cf389b303"
         with:
-          title: Continuous build
-          automatic_release_tag: continuous-stable
           prerelease: false
-          draft: false
           files: /home/runner/work/Dolphin_emu_Appimage/Dolphin_emu_Appimage/*.AppImage*
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          repo_token: ${{ secrets.RELEASE_TOKEN }}
