@@ -48,7 +48,7 @@ jobs:
           wget -q "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage" -O qtplugin ; chmod a+x qtplugin
           wget -q "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage" -O linuxdeploy ; chmod a+x linuxdeploy
           wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool ; chmod a+x appimagetool
-          git clone --filter="blob:none" --depth=1 -b $RELEASE_VERSION https://github.com/dolphin-emu/dolphin.git dolphin-emu
+          git clone --filter="blob:none" --depth=1 -b $MAJOR_VERSION https://github.com/dolphin-emu/dolphin.git dolphin-emu
           VERSION2="$(git -C dolphin-emu rev-parse --short HEAD)"; export VERSION2
           mkdir dolphin/
           mkdir dolphin/usr/
